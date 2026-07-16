@@ -9,7 +9,7 @@
 
 ## Introduction
 
-This is a collection of Claude Code Skills for automating research paper search, recommendation, analysis, and organization. By calling arXiv and Semantic Scholar APIs, it recommends high-quality papers daily and automatically generates detailed notes and knowledge graphs.
+This is a collection of skills compatible with both Claude Code and OpenAI Codex for automating research paper search, recommendation, analysis, and organization. By calling arXiv and Semantic Scholar APIs, it recommends high-quality papers daily and automatically generates detailed notes and knowledge graphs.
 
 ## Features
 
@@ -60,7 +60,7 @@ A standalone Next.js 16 web application for visual paper browsing. See [web/READ
 
 ### Prerequisites
 
-1. **Claude Code CLI** - Install and configure Claude Code (required for CLI skills)
+1. **Claude Code or OpenAI Codex** - The CLI skills work with Claude Code and with Codex CLI, IDE extension, or desktop app
 2. **Python 3.8+** - For running search and analysis scripts
 3. **Node.js 20+** - Required for Web app
 4. **Anthropic API Key** - Required for Web app AI features (Claude)
@@ -71,7 +71,7 @@ A standalone Next.js 16 web application for visual paper browsing. See [web/READ
 
 ### Installation Steps
 
-#### Option A: CLI Skills Installation
+#### Option A: Claude Code Skills Installation
 
 Copy skills to your Claude Code skills directory:
 
@@ -81,17 +81,40 @@ Copy-Item -Recurse evil-read-arxiv\start-my-day $env:USERPROFILE\.claude\skills\
 Copy-Item -Recurse evil-read-arxiv\paper-analyze $env:USERPROFILE\.claude\skills\
 Copy-Item -Recurse evil-read-arxiv\extract-paper-images $env:USERPROFILE\.claude\skills\
 Copy-Item -Recurse evil-read-arxiv\paper-search $env:USERPROFILE\.claude\skills\
+Copy-Item -Recurse evil-read-arxiv\conf-papers $env:USERPROFILE\.claude\skills\
 
 # macOS/Linux
 cp -r evil-read-arxiv/start-my-day ~/.claude/skills/
 cp -r evil-read-arxiv/paper-analyze ~/.claude/skills/
 cp -r evil-read-arxiv/extract-paper-images ~/.claude/skills/
 cp -r evil-read-arxiv/paper-search ~/.claude/skills/
+cp -r evil-read-arxiv/conf-papers ~/.claude/skills/
 ```
 
 Configure environment variables and paths (see "Configuration" below), then restart Claude Code CLI.
 
-#### Option B: Web App Installation
+#### Option B: Codex Skills Installation
+
+Codex discovers personal skills from `$HOME/.agents/skills`. Copy the skill directories, then start a new task; restart Codex if they do not appear immediately.
+
+```bash
+# Windows PowerShell
+$skills = "$env:USERPROFILE\.agents\skills"
+New-Item -ItemType Directory -Force $skills | Out-Null
+Copy-Item -Recurse evil-read-arxiv\start-my-day $skills
+Copy-Item -Recurse evil-read-arxiv\paper-analyze $skills
+Copy-Item -Recurse evil-read-arxiv\extract-paper-images $skills
+Copy-Item -Recurse evil-read-arxiv\paper-search $skills
+Copy-Item -Recurse evil-read-arxiv\conf-papers $skills
+
+# macOS/Linux
+mkdir -p ~/.agents/skills
+cp -r evil-read-arxiv/{start-my-day,paper-analyze,extract-paper-images,paper-search,conf-papers} ~/.agents/skills/
+```
+
+In Codex, type `$` to select a skill or mention it explicitly, for example `$paper-analyze`. Claude Code users can continue using `/paper-analyze`.
+
+#### Option C: Web App Installation
 
 ```bash
 # 1. Install Python dependencies (project root)
@@ -277,6 +300,12 @@ paper-analyze 2602.12345
 paper-analyze "Paper Title"
 ```
 
+Explicit invocation in Codex:
+
+```text
+$paper-analyze 2602.12345
+```
+
 This will:
 1. Download paper PDF
 2. Extract images
@@ -447,4 +476,5 @@ MIT License
 - [arXiv](https://arxiv.org/) - Open-access academic preprint platform
 - [Semantic Scholar](https://www.semanticscholar.org/) - AI-powered academic research platform
 - [Claude Code](https://claude.ai/claude-code) - AI-assisted code and writing tool
+- [OpenAI Codex](https://developers.openai.com/codex/) - Coding agent available in CLI, IDE, and desktop surfaces
 - [Obsidian](https://obsidian.md/) - Powerful knowledge management tool

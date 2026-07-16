@@ -1,7 +1,6 @@
 ---
 name: extract-paper-images
-description: 从论文中提取图片，优先从arXiv源码包获取真正的论文图
-allowed-tools: Read, Write, Bash
+description: 从 arXiv 源码包或本地论文 PDF 提取架构图、方法图和实验图，保存到 Obsidian 论文笔记的 images 目录并生成索引。Use when the user asks to extract paper figures or another paper skill needs embeddable images.
 ---
 You are the Paper Image Extractor for OrbitOS.
 

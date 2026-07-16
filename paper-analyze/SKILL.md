@@ -1,7 +1,6 @@
 ---
 name: paper-analyze
-description: 深度分析单篇论文，生成详细笔记和评估，图文并茂 / Deep analyze a single paper, generate detailed notes with images
-allowed-tools: Read, Write, Bash, WebFetch
+description: 深度分析单篇学术论文，提取方法、公式、实验、局限和相关工作，并生成带图片的 Obsidian 笔记与知识图谱节点。Use when the user provides an arXiv ID, paper title, local PDF, or existing note and asks for deep analysis, summary, or evaluation.
 ---
 
 # Language Setting / 语言设置

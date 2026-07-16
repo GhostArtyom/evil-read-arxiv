@@ -1,0 +1,4 @@
+interface:
+  display_name: "Extract Paper Images"
+  short_description: "Extract useful paper figures for Obsidian notes"
+  default_prompt: "Use $extract-paper-images to extract the key figures from this paper."

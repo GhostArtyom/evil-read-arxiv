@@ -9,7 +9,7 @@
 
 ## 简介
 
-这是一套 Claude Code 技能（Skills）集合，用于自动化研究论文的搜索、推荐、分析和整理工作流。通过调用 arXiv 和 Semantic Scholar API，每天为你推荐高质量论文，并自动生成详细笔记和关系图谱。
+这是一套兼容 Claude Code 与 OpenAI Codex 的技能（Skills）集合，用于自动化研究论文的搜索、推荐、分析和整理工作流。通过调用 arXiv 和 Semantic Scholar API，每天为你推荐高质量论文，并自动生成详细笔记和关系图谱。
 
 ## 更新日志
 
@@ -75,7 +75,7 @@
 
 ### 前置要求
 
-1. **Claude Code CLI** - 需要安装并配置 Claude Code（CLI 技能所需）
+1. **Claude Code 或 OpenAI Codex** - CLI 技能可运行于 Claude Code，也可运行于 Codex CLI、IDE 扩展或桌面客户端
 2. **Python 3.8+** - 用于运行搜索和分析脚本
 3. **Node.js 20+** - Web 应用所需
 4. **Anthropic API Key** - Web 应用的 AI 功能所需（Claude）
@@ -86,7 +86,7 @@
 
 ### 安装步骤
 
-#### 方式一：CLI 技能安装
+#### 方式一：Claude Code 技能安装
 
 将技能复制到 Claude Code skills 目录：
 
@@ -96,17 +96,40 @@ Copy-Item -Recurse evil-read-arxiv\start-my-day $env:USERPROFILE\.claude\skills\
 Copy-Item -Recurse evil-read-arxiv\paper-analyze $env:USERPROFILE\.claude\skills\
 Copy-Item -Recurse evil-read-arxiv\extract-paper-images $env:USERPROFILE\.claude\skills\
 Copy-Item -Recurse evil-read-arxiv\paper-search $env:USERPROFILE\.claude\skills\
+Copy-Item -Recurse evil-read-arxiv\conf-papers $env:USERPROFILE\.claude\skills\
 
 # macOS/Linux
 cp -r evil-read-arxiv/start-my-day ~/.claude/skills/
 cp -r evil-read-arxiv/paper-analyze ~/.claude/skills/
 cp -r evil-read-arxiv/extract-paper-images ~/.claude/skills/
 cp -r evil-read-arxiv/paper-search ~/.claude/skills/
+cp -r evil-read-arxiv/conf-papers ~/.claude/skills/
 ```
 
 配置环境变量和路径（见下文"配置"部分），然后重启 Claude Code CLI。
 
-#### 方式二：Web 应用安装
+#### 方式二：Codex 技能安装
+
+Codex 从 `$HOME/.agents/skills` 发现个人技能。复制技能目录后，新建任务；若没有立即出现则重启 Codex。
+
+```bash
+# Windows PowerShell
+$skills = "$env:USERPROFILE\.agents\skills"
+New-Item -ItemType Directory -Force $skills | Out-Null
+Copy-Item -Recurse evil-read-arxiv\start-my-day $skills
+Copy-Item -Recurse evil-read-arxiv\paper-analyze $skills
+Copy-Item -Recurse evil-read-arxiv\extract-paper-images $skills
+Copy-Item -Recurse evil-read-arxiv\paper-search $skills
+Copy-Item -Recurse evil-read-arxiv\conf-papers $skills
+
+# macOS/Linux
+mkdir -p ~/.agents/skills
+cp -r evil-read-arxiv/{start-my-day,paper-analyze,extract-paper-images,paper-search,conf-papers} ~/.agents/skills/
+```
+
+Codex 中可输入 `$` 选择技能，或在提示词中显式写 `$paper-analyze`。Claude Code 继续使用原有的 `/paper-analyze` 形式。
+
+#### 方式三：Web 应用安装
 
 ```bash
 # 1. 安装 Python 依赖（项目根目录）
@@ -289,6 +312,12 @@ paper-analyze 2602.12345
 paper-analyze "论文标题"
 ```
 
+Codex 中显式调用：
+
+```text
+$paper-analyze 2602.12345
+```
+
 这会：
 1. 下载论文 PDF
 2. 提取图片
@@ -462,4 +491,5 @@ MIT License
 - [arXiv](https://arxiv.org/) - 开放获取的学术论文预印本平台
 - [Semantic Scholar](https://www.semanticscholar.org/) - AI 驱动的学术研究平台
 - [Claude Code](https://claude.ai/claude-code) - AI 辅助的代码和写作工具
+- [OpenAI Codex](https://developers.openai.com/codex/) - 支持 CLI、IDE 与桌面端的编码智能体
 - [Obsidian](https://obsidian.md/) - 强大的知识管理工具
