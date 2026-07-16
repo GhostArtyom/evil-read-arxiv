@@ -141,8 +141,10 @@ paper-analyze 2602.12345
 在 Codex 中可显式调用：
 
 ```text
-$paper-analyze 2602.12345
+$paper-analyze https://example.com/paper.pdf
 ```
+
+`paper-analyze` 会自动区分 arXiv ID/link、公开 PDF、本地 PDF、研究项目页和博客；非 arXiv 来源不会写入伪造的 arXiv ID。
 
 ## 常用 arXiv 分类
 

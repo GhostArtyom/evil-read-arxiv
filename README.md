@@ -15,6 +15,7 @@
 
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
+| 2026-07-16 | v2.1 | CLI skills 兼容 OpenAI Codex；paper-analyze 新增公开 PDF、研究项目页、博客和普通网页来源识别 |
 | 2026-04-24 | v2.0 | 新增 Web 应用：基于 Next.js 16 的论文推荐网页端，支持 AI 智能摘要、深度分析、论文图片提取、反馈偏好学习、收藏夹管理、中英双语切换、桌面/移动端多端适配 |
 | 2026-03-13 | v1.1 | 新增 `conf-papers` 技能：支持搜索 CVPR/ICCV/ECCV/ICLR/AAAI/NeurIPS/ICML 等顶级会议论文，基于 DBLP + Semantic Scholar 双数据源，独立配置文件，三维评分推荐 |
 | 2026-03-01 | v1.0 | 初始版本：start-my-day 每日推荐、paper-analyze 论文分析、extract-paper-images 图片提取、paper-search 论文搜索 |
@@ -30,7 +31,9 @@
 - 自动链接关键词到已有笔记
 
 ### 2. paper-analyze - 论文深度分析
-- 深度分析单篇论文
+- 自动识别 arXiv ID/link、公开 PDF URL、本地 PDF、研究项目页、技术博客和普通网页
+- 研究项目页会自动发现明确的 Paper/PDF 链接；直接 PDF 会保留原始来源并尝试补全项目页元数据
+- 对论文/PDF 使用研究分析模板，对博客/网页使用来源分析模板，不伪造 arXiv 字段
 - 生成结构化笔记，包含：
   - 摘要翻译和要点提炼
   - 研究背景与动机
@@ -44,6 +47,7 @@
 
 ### 3. extract-paper-images - 论文图片提取
 - 优先从 arXiv 源码包提取高质量图片
+- 支持公开 PDF 直链和本地 PDF
 - 支持从 PDF 提取图片作为备选
 - 自动生成图片索引
 - 保存到笔记目录的 images 子目录
@@ -310,12 +314,16 @@ start my day
 paper-analyze 2602.12345
 # 或使用论文标题
 paper-analyze "论文标题"
+# 或使用公开 PDF / 项目页 / 博客链接
+paper-analyze "https://example.com/paper.pdf"
+paper-analyze "https://example.com/research/project/"
+paper-analyze "https://example.com/blog/post/"
 ```
 
 Codex 中显式调用：
 
 ```text
-$paper-analyze 2602.12345
+$paper-analyze https://example.com/paper.pdf
 ```
 
 这会：
@@ -328,6 +336,8 @@ $paper-analyze 2602.12345
 
 ```bash
 extract-paper-images 2602.12345
+# 也可直接传公开 PDF URL
+extract-paper-images "https://example.com/paper.pdf"
 ```
 
 ### 搜索已有论文

@@ -22,7 +22,9 @@ This is a collection of skills compatible with both Claude Code and OpenAI Codex
 - Auto-link keywords to existing notes
 
 ### 2. paper-analyze - Deep Paper Analysis
-- Deep analysis of individual papers
+- Auto-detect arXiv IDs/links, public PDF URLs, local PDFs, research project pages, technical blogs, and regular web pages
+- Discover explicit Paper/PDF links on research pages; preserve direct PDF sources and try to enrich metadata from the parent project page
+- Use research-note templates for papers/PDFs and source-note templates for blogs/pages without inventing arXiv metadata
 - Generate structured notes including:
   - Abstract translation and key points
   - Research background and motivation
@@ -36,6 +38,7 @@ This is a collection of skills compatible with both Claude Code and OpenAI Codex
 
 ### 3. extract-paper-images - Paper Image Extraction
 - Prefer extracting high-quality images from arXiv source packages
+- Support public PDF URLs and local PDFs
 - Fallback to PDF image extraction
 - Auto-generate image index
 - Save to notes directory's images subfolder
@@ -298,12 +301,16 @@ If you want to deeply read a specific paper:
 paper-analyze 2602.12345
 # Or use paper title
 paper-analyze "Paper Title"
+# Or pass a public PDF, project page, or blog URL
+paper-analyze "https://example.com/paper.pdf"
+paper-analyze "https://example.com/research/project/"
+paper-analyze "https://example.com/blog/post/"
 ```
 
 Explicit invocation in Codex:
 
 ```text
-$paper-analyze 2602.12345
+$paper-analyze https://example.com/paper.pdf
 ```
 
 This will:
@@ -316,6 +323,8 @@ This will:
 
 ```bash
 extract-paper-images 2602.12345
+# Public PDF URLs are also accepted
+extract-paper-images "https://example.com/paper.pdf"
 ```
 
 ### Search Existing Papers

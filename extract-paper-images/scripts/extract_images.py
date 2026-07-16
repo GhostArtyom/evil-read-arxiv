@@ -18,8 +18,11 @@ import tarfile
 import tempfile
 import logging
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 logger = logging.getLogger(__name__)
+MARKDOWN_URL_RE = re.compile(r'\[[^\]]*\]\((https?://[^\s)]+)\)', re.IGNORECASE)
+PLAIN_URL_RE = re.compile(r'https?://[^\s<>\[\]()]+', re.IGNORECASE)
 
 try:
     import requests
@@ -28,6 +31,20 @@ except ImportError:
     import urllib.request
     HAS_REQUESTS = False
     logger.warning("requests not found, using urllib")
+
+
+def extract_source_reference(value):
+    """接受纯 URL、尖括号 URL 或聊天中常见的 Markdown 链接。"""
+    value = value.strip()
+    markdown_urls = MARKDOWN_URL_RE.findall(value)
+    if markdown_urls:
+        return markdown_urls[-1].rstrip('.,;!?')
+    if value.startswith('<') and value.endswith('>'):
+        value = value[1:-1].strip()
+    plain_urls = PLAIN_URL_RE.findall(value)
+    if plain_urls and (len(plain_urls) == 1 or any(char.isspace() for char in value)):
+        return plain_urls[-1].rstrip('.,;!?')
+    return value
 
 
 def extract_arxiv_source(arxiv_id, temp_dir):
@@ -73,6 +90,95 @@ def extract_arxiv_source(arxiv_id, temp_dir):
     except Exception as e:
         logger.error("下载源码包失败: %s", e)
         return False
+
+
+def normalize_arxiv_id(value):
+    """仅识别合法 ID 或明确的 arxiv.org 链接，避免把普通 URL 中的数字误判为 arXiv。"""
+    value = value.strip()
+    parsed = urlparse(value)
+    if parsed.scheme in ('http', 'https'):
+        host = (parsed.hostname or '').lower()
+        if host not in ('arxiv.org', 'www.arxiv.org', 'export.arxiv.org'):
+            return None
+        candidate = unquote(parsed.path).strip('/')
+        candidate = re.sub(r'^(abs|pdf|html|e-print)/', '', candidate, flags=re.IGNORECASE)
+        candidate = re.sub(r'\.pdf$', '', candidate, flags=re.IGNORECASE)
+    else:
+        candidate = re.sub(r'^arxiv:\s*', '', value, flags=re.IGNORECASE).strip()
+
+    match = re.fullmatch(r'(\d{4}\.\d{4,5})(v\d+)?', candidate, flags=re.IGNORECASE)
+    if not match:
+        return None
+    paper_id = match.group(1)
+    if not 1 <= int(paper_id[2:4]) <= 12:
+        return None
+    return paper_id + (match.group(2) or '').lower()
+
+
+def is_http_url(value):
+    parsed = urlparse(value)
+    return parsed.scheme in ('http', 'https') and bool(parsed.netloc)
+
+
+def download_public_pdf(pdf_url, temp_dir, max_bytes=200 * 1024 * 1024):
+    """下载公开 PDF URL，验证 PDF magic bytes，并限制文件大小。"""
+    parsed = urlparse(pdf_url)
+    if parsed.scheme not in ('http', 'https'):
+        raise ValueError('仅支持公开 HTTP(S) PDF URL')
+    filename = os.path.basename(unquote(parsed.path)) or 'document.pdf'
+    filename = re.sub(r'[^\w.-]+', '_', filename).strip('._') or 'document.pdf'
+    if not filename.lower().endswith('.pdf'):
+        filename += '.pdf'
+    pdf_path = os.path.join(temp_dir, filename)
+    print(f"正在下载公开PDF: {pdf_url}")
+
+    try:
+        if HAS_REQUESTS:
+            with requests.get(
+                pdf_url,
+                stream=True,
+                timeout=(15, 90),
+                allow_redirects=True,
+                headers={'User-Agent': 'evil-read-arxiv/3.0'},
+            ) as response:
+                response.raise_for_status()
+                total = 0
+                first = b''
+                with open(pdf_path, 'wb') as handle:
+                    for chunk in response.iter_content(chunk_size=64 * 1024):
+                        if not chunk:
+                            continue
+                        if not first:
+                            first = chunk
+                        total += len(chunk)
+                        if total > max_bytes:
+                            raise ValueError(f'PDF超过大小限制: {max_bytes} bytes')
+                        handle.write(chunk)
+                content_type = response.headers.get('Content-Type', '').split(';', 1)[0].lower()
+                if not first.startswith(b'%PDF-'):
+                    os.remove(pdf_path)
+                    raise ValueError(f'URL返回的不是PDF (Content-Type: {content_type or "--"})')
+        else:
+            req = urllib.request.urlopen(pdf_url, timeout=90)
+            content = req.read(max_bytes + 1)
+            if len(content) > max_bytes:
+                raise ValueError(f'PDF超过大小限制: {max_bytes} bytes')
+            if not content.startswith(b'%PDF-'):
+                raise ValueError('URL返回的不是PDF')
+            with open(pdf_path, 'wb') as handle:
+                handle.write(content)
+        print(f"PDF已下载: {pdf_path}")
+        return pdf_path
+    except Exception as e:
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+        logger.error("下载PDF失败: %s", e)
+        return None
+
+
+def download_arxiv_pdf(arxiv_id, temp_dir):
+    """下载 arXiv PDF，供源码图片不足时回退提取。"""
+    return download_public_pdf(f"https://arxiv.org/pdf/{arxiv_id}", temp_dir)
 
 
 def find_figures_from_source(temp_dir):
@@ -227,20 +333,21 @@ def main():
     )
 
     if len(sys.argv) < 4:
-        print("Usage: python extract_images.py <paper_id> <output_dir> <index_file>")
-        print("  paper_id: arXiv ID (如: 2510.24701) 或本地PDF路径")
+        print("Usage: python extract_images.py <source> <output_dir> <index_file>")
+        print("  source: arXiv ID/link、公开直接PDF URL 或本地PDF路径")
         print("  output_dir: 输出目录")
         print("  index_file: 索引文件路径")
         sys.exit(1)
 
-    paper_input = sys.argv[1]
+    paper_input = extract_source_reference(sys.argv[1])
     output_dir = sys.argv[2]
     index_file = sys.argv[3]
 
     os.makedirs(output_dir, exist_ok=True)
 
     is_pdf_file = os.path.isfile(paper_input)
-    arxiv_id = None
+    input_url = paper_input if is_http_url(paper_input) else None
+    arxiv_id = normalize_arxiv_id(paper_input)
     pdf_path = None
 
     if is_pdf_file:
@@ -248,13 +355,22 @@ def main():
         filename = os.path.basename(pdf_path)
         match = re.search(r'(\d{4}\.\d+)', filename)
         if match:
-            arxiv_id = match.group(1)
-            print(f"检测到arXiv ID: {arxiv_id}")
-    else:
-        arxiv_id = paper_input
+            detected = normalize_arxiv_id(match.group(1))
+            if detected:
+                arxiv_id = detected
+                print(f"检测到arXiv ID: {arxiv_id}")
+    elif not input_url and not arxiv_id:
+        logger.error("无法识别输入。请提供合法 arXiv ID/link、公开直接 PDF URL 或本地 PDF。")
+        sys.exit(2)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         all_figures = []
+
+        if input_url and not arxiv_id:
+            pdf_path = download_public_pdf(input_url, temp_dir)
+            if not pdf_path:
+                logger.error("URL 未返回可用 PDF；若这是网页，请先用 paper-analyze 的来源解析器找到 PDF。")
+                sys.exit(2)
 
         # 步骤1: 尝试从arXiv源码包提取
         if arxiv_id:
@@ -275,7 +391,10 @@ def main():
                         })
                         print(f"  - {fig['filename']}")
 
-        # 步骤2: 如果源码包中没有找到足够的图片，从PDF中提取
+        # 步骤2: 如果源码包中没有找到足够的图片，下载/使用PDF并直接提取
+        if len(all_figures) < 3 and not pdf_path and arxiv_id:
+            pdf_path = download_arxiv_pdf(arxiv_id, temp_dir)
+
         if len(all_figures) < 3 and pdf_path:
             print(f"\n找到的图片数量较少，从PDF直接提取...")
             pdf_figures = extract_pdf_figures(pdf_path, output_dir)
