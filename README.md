@@ -9,12 +9,13 @@
 
 ## 简介
 
-这是一套 Claude Code 技能（Skills）集合，用于自动化研究论文的搜索、推荐、分析和整理工作流。通过调用 arXiv 和 Semantic Scholar API，每天为你推荐高质量论文，并自动生成详细笔记和关系图谱。
+这是一套兼容 Claude Code 与 OpenAI Codex 的技能（Skills）集合，用于自动化研究论文的搜索、推荐、分析和整理工作流。通过调用 arXiv 和 Semantic Scholar API，每天为你推荐高质量论文，并自动生成详细笔记和关系图谱。
 
 ## 更新日志
 
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
+| 2026-07-16 | v2.1 | CLI skills 兼容 OpenAI Codex；paper-analyze 新增公开 PDF、研究项目页、博客和普通网页来源识别 |
 | 2026-04-24 | v2.0 | 新增 Web 应用：基于 Next.js 16 的论文推荐网页端，支持 AI 智能摘要、深度分析、论文图片提取、反馈偏好学习、收藏夹管理、中英双语切换、桌面/移动端多端适配 |
 | 2026-03-13 | v1.1 | 新增 `conf-papers` 技能：支持搜索 CVPR/ICCV/ECCV/ICLR/AAAI/NeurIPS/ICML 等顶级会议论文，基于 DBLP + Semantic Scholar 双数据源，独立配置文件，三维评分推荐 |
 | 2026-03-01 | v1.0 | 初始版本：start-my-day 每日推荐、paper-analyze 论文分析、extract-paper-images 图片提取、paper-search 论文搜索 |
@@ -30,7 +31,9 @@
 - 自动链接关键词到已有笔记
 
 ### 2. paper-analyze - 论文深度分析
-- 深度分析单篇论文
+- 自动识别 arXiv ID/link、公开 PDF URL、本地 PDF、研究项目页、技术博客和普通网页
+- 研究项目页会自动发现明确的 Paper/PDF 链接；直接 PDF 会保留原始来源并尝试补全项目页元数据
+- 对论文/PDF 使用研究分析模板，对博客/网页使用来源分析模板，不伪造 arXiv 字段
 - 生成结构化笔记，包含：
   - 摘要翻译和要点提炼
   - 研究背景与动机
@@ -44,6 +47,7 @@
 
 ### 3. extract-paper-images - 论文图片提取
 - 优先从 arXiv 源码包提取高质量图片
+- 支持公开 PDF 直链和本地 PDF
 - 支持从 PDF 提取图片作为备选
 - 自动生成图片索引
 - 保存到笔记目录的 images 子目录
@@ -75,7 +79,7 @@
 
 ### 前置要求
 
-1. **Claude Code CLI** - 需要安装并配置 Claude Code（CLI 技能所需）
+1. **Claude Code 或 OpenAI Codex** - CLI 技能可运行于 Claude Code，也可运行于 Codex CLI、IDE 扩展或桌面客户端
 2. **Python 3.8+** - 用于运行搜索和分析脚本
 3. **Node.js 20+** - Web 应用所需
 4. **Anthropic API Key** - Web 应用的 AI 功能所需（Claude）
@@ -86,7 +90,7 @@
 
 ### 安装步骤
 
-#### 方式一：CLI 技能安装
+#### 方式一：Claude Code 技能安装
 
 将技能复制到 Claude Code skills 目录：
 
@@ -96,17 +100,40 @@ Copy-Item -Recurse evil-read-arxiv\start-my-day $env:USERPROFILE\.claude\skills\
 Copy-Item -Recurse evil-read-arxiv\paper-analyze $env:USERPROFILE\.claude\skills\
 Copy-Item -Recurse evil-read-arxiv\extract-paper-images $env:USERPROFILE\.claude\skills\
 Copy-Item -Recurse evil-read-arxiv\paper-search $env:USERPROFILE\.claude\skills\
+Copy-Item -Recurse evil-read-arxiv\conf-papers $env:USERPROFILE\.claude\skills\
 
 # macOS/Linux
 cp -r evil-read-arxiv/start-my-day ~/.claude/skills/
 cp -r evil-read-arxiv/paper-analyze ~/.claude/skills/
 cp -r evil-read-arxiv/extract-paper-images ~/.claude/skills/
 cp -r evil-read-arxiv/paper-search ~/.claude/skills/
+cp -r evil-read-arxiv/conf-papers ~/.claude/skills/
 ```
 
 配置环境变量和路径（见下文"配置"部分），然后重启 Claude Code CLI。
 
-#### 方式二：Web 应用安装
+#### 方式二：Codex 技能安装
+
+Codex 从 `$HOME/.agents/skills` 发现个人技能。复制技能目录后，新建任务；若没有立即出现则重启 Codex。
+
+```bash
+# Windows PowerShell
+$skills = "$env:USERPROFILE\.agents\skills"
+New-Item -ItemType Directory -Force $skills | Out-Null
+Copy-Item -Recurse evil-read-arxiv\start-my-day $skills
+Copy-Item -Recurse evil-read-arxiv\paper-analyze $skills
+Copy-Item -Recurse evil-read-arxiv\extract-paper-images $skills
+Copy-Item -Recurse evil-read-arxiv\paper-search $skills
+Copy-Item -Recurse evil-read-arxiv\conf-papers $skills
+
+# macOS/Linux
+mkdir -p ~/.agents/skills
+cp -r evil-read-arxiv/{start-my-day,paper-analyze,extract-paper-images,paper-search,conf-papers} ~/.agents/skills/
+```
+
+Codex 中可输入 `$` 选择技能，或在提示词中显式写 `$paper-analyze`。Claude Code 继续使用原有的 `/paper-analyze` 形式。
+
+#### 方式三：Web 应用安装
 
 ```bash
 # 1. 安装 Python 依赖（项目根目录）
@@ -287,6 +314,16 @@ start my day
 paper-analyze 2602.12345
 # 或使用论文标题
 paper-analyze "论文标题"
+# 或使用公开 PDF / 项目页 / 博客链接
+paper-analyze "https://example.com/paper.pdf"
+paper-analyze "https://example.com/research/project/"
+paper-analyze "https://example.com/blog/post/"
+```
+
+Codex 中显式调用：
+
+```text
+$paper-analyze https://example.com/paper.pdf
 ```
 
 这会：
@@ -299,6 +336,8 @@ paper-analyze "论文标题"
 
 ```bash
 extract-paper-images 2602.12345
+# 也可直接传公开 PDF URL
+extract-paper-images "https://example.com/paper.pdf"
 ```
 
 ### 搜索已有论文
@@ -462,4 +501,5 @@ MIT License
 - [arXiv](https://arxiv.org/) - 开放获取的学术论文预印本平台
 - [Semantic Scholar](https://www.semanticscholar.org/) - AI 驱动的学术研究平台
 - [Claude Code](https://claude.ai/claude-code) - AI 辅助的代码和写作工具
+- [OpenAI Codex](https://developers.openai.com/codex/) - 支持 CLI、IDE 与桌面端的编码智能体
 - [Obsidian](https://obsidian.md/) - 强大的知识管理工具

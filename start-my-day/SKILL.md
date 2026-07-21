@@ -1,6 +1,6 @@
 ---
 name: start-my-day
-description: 论文阅读工作流启动 - 生成今日论文推荐笔记 / Paper reading workflow starter - Generate daily paper recommendations
+description: 生成每日 arXiv 与 Semantic Scholar 论文推荐并写入 Obsidian Vault。Use when the user asks to start the day, create today's paper brief, or generate recommendations for a specified date.
 ---
 
 # Language Setting / 语言设置
@@ -18,7 +18,7 @@ At the start of execution, read the config file to detect the language setting:
 
 ```bash
 # Resolve OBSIDIAN_VAULT_PATH if not set in the current session
-# Claude Code bash sessions do not source ~/.zshrc automatically
+# Some agent-hosted shell sessions do not source interactive shell profiles automatically
 if [ -z "$OBSIDIAN_VAULT_PATH" ]; then
     [ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc" 2>/dev/null || true
     [ -f "$HOME/.bash_profile" ] && source "$HOME/.bash_profile" 2>/dev/null || true
@@ -483,7 +483,7 @@ python scripts/link_keywords.py \
 - **内容**：详细的论文深度分析笔记
   - 包含所有核心信息：研究问题、方法概述、方法架构、关键创新、实验结果、深度分析、相关论文对比等
   - **图文并茂**：论文中的所有图片都要用上（核心架构图、方法图、实验结果图等）
-- **适用**：用户主动调用 `/paper-analyze [论文ID]` 或论文标题
+- **适用**：用户主动调用 `paper-analyze`（Codex 使用 `$paper-analyze`，Claude Code 使用 `/paper-analyze`）并提供论文 ID 或标题
 - **重要要求**：无论是start-my-day整理的论文，还是用户主动查看的论文，都要图文并茂
 
 # 使用说明
@@ -493,7 +493,7 @@ python scripts/link_keywords.py \
 **日期参数支持**：
 - 无参数：生成当天的论文推荐笔记
 - 有参数（YYYY-MM-DD）：生成指定日期的论文推荐笔记
-  - 例如：`/start-my-day 2026-02-27`
+  - 例如：Codex 中使用 `$start-my-day 2026-02-27`，Claude Code 中使用 `/start-my-day 2026-02-27`
 
 ## 自动执行流程
 
@@ -565,10 +565,10 @@ python scripts/link_keywords.py \
        # 只提取图片（如果没有图片的话）
    else:
        # 提取第一张图片
-       /extract-paper-images [论文ID]
+       调用 extract-paper-images skill，传入 [论文ID]
 
        # 生成详细分析报告
-       /paper-analyze [论文ID]
+       调用 paper-analyze skill，传入 [论文ID]
    ```
    - **如果已有笔记**：
      - 不重复生成详细报告

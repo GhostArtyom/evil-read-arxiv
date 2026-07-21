@@ -1,6 +1,6 @@
 ---
 name: conf-papers
-description: 顶级会议论文搜索推荐 - 搜索 CVPR/ICCV/ECCV/ICLR/AAAI/NeurIPS/ICML 等顶会论文
+description: 通过 DBLP 与 Semantic Scholar 搜索 CVPR、ICCV、ECCV、ICLR、AAAI、NeurIPS、ICML 等顶会论文，评分后生成 Obsidian 年度推荐笔记。Use when the user asks for a conference/year paper list, top-conference recommendations, or papers filtered by venue.
 ---
 You are the Conference Paper Recommender for OrbitOS.
 
@@ -357,17 +357,17 @@ python scripts/link_keywords.py \
 
 # 使用说明
 
-当用户输入 `/conf-papers` 时，按以下步骤执行：
+当用户调用 `conf-papers`（Codex 使用 `$conf-papers`，Claude Code 使用 `/conf-papers`）时，按以下步骤执行：
 
 **参数支持**：
 - 可选：年份（如 `2025`），未指定时使用配置中的 `conf_papers.default_year`
 - 可选：会议名（如 `ICLR,CVPR`，逗号分隔），未指定时使用配置中的 `conf_papers.default_conferences`
 - 搜索关键词和排除关键词均从 `conf_papers` 配置段读取
 - 示例：
-  - `/conf-papers` — 使用配置中的默认年份和会议
-  - `/conf-papers 2025` — 搜索配置中默认会议的 2025 年论文
-  - `/conf-papers 2024 ICLR` — 仅搜索 ICLR 2024
-  - `/conf-papers 2024 CVPR,NeurIPS` — 搜索 CVPR 和 NeurIPS 2024
+  - `$conf-papers` 或 `/conf-papers` — 使用配置中的默认年份和会议
+  - `$conf-papers 2025` — 搜索配置中默认会议的 2025 年论文
+  - `$conf-papers 2024 ICLR` — 仅搜索 ICLR 2024
+  - `$conf-papers 2024 CVPR,NeurIPS` — 搜索 CVPR 和 NeurIPS 2024
 
 ## 自动执行流程
 
@@ -418,9 +418,9 @@ python scripts/link_keywords.py \
        # 使用已有的笔记路径
    elif 有 arXiv ID:
        # 提取第一张图片
-       /extract-paper-images [论文ID]
+       调用 extract-paper-images skill，传入 [论文ID]
        # 生成详细分析报告
-       /paper-analyze [论文ID]
+       调用 paper-analyze skill，传入 [论文ID]
    else:
        # 无 arXiv ID，跳过深度分析
        # 标注在推荐笔记中

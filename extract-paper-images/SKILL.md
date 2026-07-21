@@ -1,195 +1,42 @@
 ---
 name: extract-paper-images
-description: 从论文中提取图片，优先从arXiv源码包获取真正的论文图
-allowed-tools: Read, Write, Bash
+description: 从 arXiv ID/link、公开直接 PDF URL 或本地论文 PDF 提取架构图、方法图和实验图，保存到 Obsidian images 目录并生成索引。Use when the user asks to extract figures or another research skill needs embeddable images.
 ---
-You are the Paper Image Extractor for OrbitOS.
 
-# 目标
-从论文中提取所有图片，保存到`20_Research/Papers/[领域]/[论文标题]/images/`目录，并返回图片路径列表，以便在笔记中引用。
+# 提取研究文档图片
 
-**关键改进**：优先从arXiv源码包提取真正的论文图片（架构图、实验结果图等），而非PDF中的logo等非核心图片。
+## 输入识别
 
-# 工作流程
+1. 将当前 SKILL.md 的父目录视为 <skill-dir>。
+2. 从 OBSIDIAN_VAULT_PATH 解析 <vault>；缺失时要求用户提供 Vault 路径。
+3. 接受：
+   - 合法 arXiv ID、arXiv:ID 或 arxiv.org 链接；
+   - 返回 PDF 内容的公开 HTTP(S) URL；
+   - 已存在的本地 PDF。
+4. 非 arXiv 网页不能直接传给图片脚本。先使用 paper-analyze/scripts/resolve_source.py；若其返回 selected_pdf_url 或 local_pdf，再传该值。
+5. 确认输出目录位于 <vault>/20_Research/Papers/<domain>/<note-stem>/images。已有图片默认保留，除非用户要求刷新。
 
-## 步骤1：识别论文来源
+## 执行
 
-1. **识别论文来源**
-   - 支持格式：arXiv ID（如2510.24701）、完整ID（arXiv:2510.24701）、本地PDF路径
+    <python> "<skill-dir>/scripts/extract_images.py" "<arxiv-id-or-pdf-url-or-local-pdf>" "<images-dir>" "<images-dir>/index.md"
 
-2. **下载PDF（如果需要）**
-   - 如果是arXiv ID，使用curl下载PDF到临时目录
+脚本自动执行：
 
-## 步骤2：提取图片（三级优先级）
+- arXiv：源码图片优先，源码中的 figure PDF 次之，论文 PDF 回退。
+- 直接 PDF URL：下载到临时目录后从 PDF 提取。
+- 本地 PDF：直接提取，不进行网络访问。
 
-### 优先级1：从arXiv源码包提取（最高优先级）
+## 验证
 
-脚本会自动尝试以下步骤：
+1. 确认 index.md 中的文件实际存在。
+2. 优先架构、方法、主结果与消融图，过滤 logo、小图标和重复内容。
+3. 检查 PNG 可读性；裁剪错误或文本过小时不要推荐嵌入。
+4. 返回目录、索引、数量和 3–5 张最有价值的文件名。
+5. Obsidian 使用 ![[filename.png|800]]。
 
-1. **下载arXiv源码包**
-   - URL：`https://arxiv.org/e-print/[PAPER_ID]`
-   - 解压到临时目录
+## 失败处理
 
-2. **查找源码中的图片目录**
-   - 检查目录：`pics/`、`figures/`、`fig/`、`images/`、`img/`
-   - 如果找到，复制所有图片文件到输出目录
-
-3. **提取源码中的PDF图片**
-   - 查找源码包中的PDF文件（如`dr_pipelinev2.pdf`）
-   - 将PDF页面转换为PNG图片
-
-4. **生成图片索引**
-   - 按来源分组（arxiv-source、pdf-figure、pdf-extraction）
-
-### 优先级2：从PDF直接提取（备选方案）
-
-如果源码包不可用或未找到足够图片，回退到从PDF中提取：
-
-```bash
-python "scripts/extract_images.py" \
-  "[PAPER_ID or PDF_PATH]" \
-  "$OBSIDIAN_VAULT_PATH/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/images" \
-  "$OBSIDIAN_VAULT_PATH/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/images/index.md"
-```
-
-**参数说明**：
-- 第1个参数：论文ID（arXiv ID）或本地PDF路径
-- 第2个参数：输出目录
-- 第3个参数：索引文件路径
-
-## 步骤3：返回图片路径
-
-返回相对于笔记文件的图片路径列表，格式化输出便于在笔记中引用。
-
-# 提取策略详解
-
-### 为什么优先从源码包提取？
-
-**PDF直接提取的问题**：
-1. **Logo等非核心图片**：PDF中的logo、图标、装饰元素被当成图片
-2. **矢量图无法识别**：论文中的架构图可能是LaTeX矢量图（TikZ/PGFplots），不是独立图片对象
-3. **多层PDF结构**：实验结果图可能是复杂渲染对象
-
-### 优先级3：TikZ/PGFplots 矢量图处理（重要补充！）
-
-**当源码包中无图片文件且 PDF 中无嵌入式图片时**（常见于纯 TikZ 论文）：
-
-1. **检测 TikZ 论文**：在 `.tex` 文件中搜索 `\begin{tikzpicture}` 或 `\usepackage{pgfplots}`
-2. **查找源码中的独立 figure PDF**：arXiv 源码有时包含由 TikZ 编译的 `.pdf` figure 文件
-3. **如果源码中有 figure PDF**：用 PyMuPDF 将 `.pdf` 转为 `.png`
-4. **如果只有内联 TikZ 代码**：
-   - 从编译后的 PDF 中定位 figure 区域（通过搜索 "Figure X:" caption 文本）
-   - 使用 PyMuPDF 裁剪 figure 区域（从 figure 顶部到 caption 底部），**不要截取整页**
-   - 裁剪代码示例：
-   ```python
-   import fitz
-   doc = fitz.open('paper.pdf')
-   for page in doc:
-       blocks = page.get_text('blocks')
-       # Find caption position (e.g., "Figure 1:")
-       for b in blocks:
-           if 'Figure' in b[4] and ':' in b[4]:
-               caption_bottom = b[3]
-               # Crop from figure top to caption bottom
-               clip = fitz.Rect(margin, fig_top, page.rect.width - margin, caption_bottom + 5)
-               pix = page.get_pixmap(matrix=fitz.Matrix(3, 3), clip=clip)
-               pix.save(f'{output_dir}/{paper_id}_fig{n}.png')
-   ```
-5. **过滤小图标**：只保留宽度 > 200px 或高度 > 200px 的图片
-
-**arXiv源码包的优势**：
-1. **真正的论文图**：`pics/`目录包含作者准备的原始图片
-2. **高质量**：源码中的图通常是高分辨率矢量图
-3. **清晰命名**：文件名描述图片内容（如`dr_pipelinev2.pdf`）
-
-# 输出格式
-
-## 图片索引文件（index.md）
-
-```markdown
-# 图片索引
-
-总计：X 张图片
-
-## 来源: arxiv-source
-- 文件名：final_results_combined.pdf
-- 路径：images/final_results_combined_page1.png
-- 大小：1500.5 KB
-- 格式：png
-
-## 来源: pdf-figure
-- 文件名：dr_pipelinev2_page1.png
-- 路径：images/dr_pipelinev2_page1.png
-- 大小：45.2 KB
-- 格式：png
-
-## 来源: pdf-extraction
-- 文件名：page1_fig15.png
-- 路径：images/page1_fig15.png
-- 大小：65.3 KB
-- 格式：png
-```
-
-## 返回的图片路径
-
-```
-Image paths:
-images/final_results_combined_page1.png (arxiv-source)
-images/dr_pipelinev2_page1.png (pdf-figure)
-images/rl_framework_page1.png (pdf-figure)
-images/question_synthesis_pipeline_page1.png (pdf-figure)
-```
-
-# 使用说明
-
-## 调用方式
-
-```bash
-/extract-paper-images 2510.24701
-```
-
-## 返回内容
-
-- 论文标题
-- 图片目录：`20_Research/Papers/领域/论文标题/images/`
-- 图片索引：`20_Research/Papers/领域/论文标题/images/index.md`
-- 核心图片：`images/final_results_combined_page1.png`等（前3-5张）
-- 图片来源标识（arxiv-source、pdf-figure、pdf-extraction）
-
-# 重要规则
-
-- **保存到正确目录**：`20_Research/Papers/[领域]/[论文标题]/images/`
-- **生成索引文件**：记录所有图片信息和来源
-- **图片质量**：确保清晰度足够高
-- **优先源码图片**：arXiv源码包中的图片优先于PDF提取
-- **来源标识**：在索引中标注图片来源，便于区分
-
-# 问题排查
-
-**如果提取的都是logo/图标**：
-1. 检查是否有arXiv源码包可用
-2. 查看`pics/`或`figures/`目录
-3. 查看索引文件中的"来源"字段
-
-**如果arXiv源码包下载失败**：
-1. 检查网络连接
-2. 检查arXiv ID格式（YYYYMM.NNNNN）
-3. 脚本会自动回退到PDF提取模式
-
-# 依赖项
-
-- Python 3.x
-- PyMuPDF（fitz）
-- requests库（用于下载arXiv源码包）
-- 网络连接（访问arXiv）
-
-# 版本历史
-
-## v2.0 (2025-02-28)
-- **新增**：优先从arXiv源码包提取图片
-- **新增**：三级优先级提取策略（源码包 > PDF图 > PDF提取）
-- **新增**：图片来源标识（arxiv-source、pdf-figure、pdf-extraction）
-- **新增**：从PDF图片文件提取为PNG的功能
-
-## v1.0
-- 初始版本：仅从PDF直接提取图片
+- URL 返回 HTML 而非 PDF：停止并提示先运行来源解析器，不把 URL 当 arXiv ID。
+- 公开下载失败：报告 HTTP 状态或内容类型，不尝试登录或绕过访问控制。
+- 输出路径越出 Vault：停止。
+- 不删除已有图片，不把临时下载留在 Vault。
